@@ -1,24 +1,34 @@
 # This module encapsulates all of our autocompletion logic
-# It takes in a wx.RichTextCtrl 
+# It wraps all of the functionality around a wx.RichTextCtrl 
 
 import wx, string
 import tornado, tornado.ioloop, tornado.httpclient
 import json, urllib, re
 
-# helper class to store editor enums
+# helper class to store editor states
 class Mode:
     INSERT = 0
     COMPLETION = 1
 
+# URLs that point to our autocompletion sources
+urls = {
+    "Bing"   : "http://api.bing.com/osjson.aspx?",
+    "Google" : "http://suggestqueries.google.com/complete/search?"
+}
+#events = {'client' : 'chrome', 'q' : request_term.lower() }
 # class to encapsulate all of our autocomplete logic
 class Scribe:
         
     def __init__(self, text):
-        self.dummy = []
+        self.suggestions = []
         self.textArea = text
         self.mode = Mode.INSERT 
         
         self.COMMIT_ACTION = wx.WXK_TAB
+
+        self.http_client = tornado.httpclient.AsyncHTTPClient()
+        self.request_url = urls["Google"]#"http://suggestqueries.google.com/complete/search?"
+
            
     def IsArrowKey(self, code):
         return code == wx.WXK_LEFT or code == wx.WXK_RIGHT or code == wx.WXK_UP or code == wx.WXK_DOWN
@@ -54,10 +64,13 @@ class Scribe:
         self.textArea.DeleteSelection()
         pos = self.textArea.GetInsertionPoint()        
         
-        # adding default behavior back to the editor
+        # adding default behavior back to the editor, namely delete functionality
         if code == wx.WXK_BACK:
             self.textArea.Remove(pos-1, pos)
-            return            
+            return
+        elif code == wx.WXK_DELETE:
+            self.textArea.Remove(pos, pos+1)
+            return
         else:        
             self.textArea.WriteText(chr(code))
             
@@ -72,7 +85,9 @@ class Scribe:
                 first_space = False
             w -= 1   
         prefix = content[w+1:].lower()
-        seed = re.findall(r'[a-zA-Z]+', content)
+
+        # look only for letters (no punctuation, numbers, etc.)
+        seed = re.findall(r'[a-zA-Z\']+', content)
         
         if len(seed) < 3 or char == '.':
             self.updateSuggestions(prefix)
@@ -80,10 +95,10 @@ class Scribe:
             new = " ".join(seed[-3:])
             self.updateSuggestions(new)
 
-        for dum in self.dummy:
-            i = dum.find(prefix)
+        for suggestion in self.suggestions:
+            i = suggestion.find(prefix)
             if i != -1:    
-                completion = dum[pos - w + i:].strip()
+                completion = suggestion[pos - w + i:].rstrip()
                 self.RunCompletion(completion, pos + 1)
                 return
         
@@ -97,15 +112,13 @@ class Scribe:
         else:
             result = json.loads(response.body)
             print "result:\t" + str(result[1])
-            self.dummy = result[1]
+            self.suggestions = result[1]
         tornado.ioloop.IOLoop.instance().stop()
 
 
     def updateSuggestions(self, request_term):
         print "request_term:\t" + request_term
-        http_client = tornado.httpclient.AsyncHTTPClient()
-        request_url = "http://suggestqueries.google.com/complete/search?"
         events = {'client' : 'chrome', 'q' : request_term.lower() }
         request = urllib.urlencode(events)
-        http_client.fetch(request_url + request, self.handle_request)
+        self.http_client.fetch(self.request_url + request, self.handle_request)
         tornado.ioloop.IOLoop.instance().start()
