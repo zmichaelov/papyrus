@@ -4,3 +4,7 @@ dist/
 *.pyo
 *.pyc
 *.swp
+smalledit.py
+async.py
+# ignore text files
+*.txt
