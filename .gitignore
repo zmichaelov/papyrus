@@ -1,3 +1,6 @@
 data/
+build/
+dist/
+*.pyo
 *.pyc
 *.swp
