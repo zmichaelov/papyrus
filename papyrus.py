@@ -111,7 +111,8 @@ class MainWindow(wx.Frame):
         for id, label, helpText, handler in \
             [(wx.ID_UNDO, '&Undo\tCtrl+Z', 'Undo the previous action', self.OnUndo),
              (wx.ID_REDO, '&Redo\tShift+Ctrl+Z', 'Redo the previous action', self.OnRedo),
-             (None, None, None, None)]:
+             (None, None, None, None),
+             (102, '&Close Tab\tCtrl+W', 'Close the current tab', self.OnCloseTab)]:
             if id == None:
                 editMenu.AppendSeparator()
             else:
@@ -195,13 +196,23 @@ class MainWindow(wx.Frame):
     def OnOpen(self, event):
         if self.askUserForFilename(style=wx.OPEN,
                                    **self.defaultFileDialogOptions()):
-
-            # add our first page to the notebook
-            self.notebook.AddPage(self.NewScribe(), self.filename)
+            # check and see if we have a currently opened tab that has not been modified
+            current = self.notebook.GetSelection()
+            control = self.NewScribe()
+            
+            if self.GetCurrentCtrl().GetValue() == "" and self.notebook.GetPageText(current) == defaultname:
+                control = self.GetCurrentCtrl() # use the existing page
+            else:
+                self.notebook.AddPage(control, self.filename) # add a new page
 
             textfile = open(os.path.join(self.dirname, self.filename), 'r')
             control.SetValue(textfile.read())
             textfile.close()
+
+            
+            current = self.notebook.GetSelection() # get the updated current tab
+            self.notebook.SetPageText(current, self.filename) # give it the appropriate filename
+
             #control.LoadFile(os.path.join(self.dirname,self.filename))
 
     def OnSaveAs(self, event):
@@ -232,6 +243,15 @@ class MainWindow(wx.Frame):
         pass
     def OnRedo(self, event):
         pass
+
+    def OnCloseTab(self, event):
+        count = self.notebook.GetPageCount()
+        if count == 1:
+            self.OnExit(event)
+        elif count > 1:
+            current = self.notebook.GetSelection()
+            self.notebook.DeletePage(current) 
+
 app = wx.App(redirect=False)
 frame = MainWindow()
 app.SetTopWindow(frame)
