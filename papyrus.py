@@ -8,7 +8,17 @@ import wx, wx.richtext, wx.aui
 import os.path, codecs
 import scribe
 
+class PapyrusApp(wx.App):
+    def MacReopenApp(self):
+        """Called when the doc icon is clicked, and ???"""
+        frame = MainWindow()
+        self.SetTopWindow
+        self.BringWindowToFront()
+
 defaultname = '[No Name]'
+app = wx.App(redirect=False)
+
+
 
 class MainWindow(wx.Frame):
     def __init__(self):
@@ -19,7 +29,7 @@ class MainWindow(wx.Frame):
         
         # to be appended to our file names
         self.extension = ".txt"
-        
+
         # initialize GUI components
         self.CreateInteriorWindowComponents()
         self.CreateExteriorWindowComponents()
@@ -29,6 +39,7 @@ class MainWindow(wx.Frame):
         '''Creates a new RichTextCtrl with Scribe functionality'''
         control = wx.richtext.RichTextCtrl(self.notebook, style=wx.TE_MULTILINE)
         newscribe = scribe.Scribe(control)
+        control.Bind(wx.EVT_TEXT, self.OnTextChanged)
         #control.Bind(wx.EVT_CHAR, newscribe.OnChar)
         return control
 
@@ -41,7 +52,9 @@ class MainWindow(wx.Frame):
         # create our RichTextCtrl as a child of the notebook
         # add our first page to the notebook
         self.notebook.AddPage(self.NewScribe(), defaultname)
-        
+        # listen for close and double-click events
+        self.notebook.Bind(wx.aui.EVT_AUINOTEBOOK_BG_DCLICK, self.OnNewTab)
+        self.notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnCloseTab)
         # adjust sizing parameters
         sizer = wx.BoxSizer()
         sizer.Add(self.notebook, 1, wx.EXPAND)
@@ -96,7 +109,7 @@ class MainWindow(wx.Frame):
              (wx.ID_SAVE, '&Save\tCtrl+S', 'Save the current file', self.OnSave),
              (wx.ID_SAVEAS, 'Save &As\tShift+Ctrl+S', 'Save the file under a different name', self.OnSaveAs),
              (None, None, None, None),
-             (wx.ID_EXIT, 'E&xit', 'Terminate the program', self.OnExit)]:
+             (wx.ID_EXIT, 'E&xit', 'Terminate the program', self.OnQuit)]:
             if id == None:
                 fileMenu.AppendSeparator()
             else:
@@ -158,7 +171,6 @@ class MainWindow(wx.Frame):
 
     # Event handlers:
     def OnNew(self, event):
-        # TODO: add support for tabbed browsing
         frame = MainWindow()
         frame.Show()
     
@@ -171,12 +183,19 @@ class MainWindow(wx.Frame):
         dialog.ShowModal()
         dialog.Destroy()
 
-    def OnExit(self, event):
+    def OnClose(self, event):
         self.Close()  # Close the main window.
+    
+    def OnQuit(self, event):
+        # destroy the app main loop
+        self.Exit()
 
     def OnSave(self, event):
         current = self.notebook.GetSelection()
         filename = self.notebook.GetPageText(current)
+        if filename.startswith("*"):
+            filename = filename[1:] 
+            self.notebook.SetPageText(current, filename)
         control = self.notebook.GetPage(current)
         if filename == defaultname:
             if self.askUserForFilename(defaultFile=filename, style=wx.SAVE, **self.defaultFileDialogOptions()):    
@@ -192,7 +211,7 @@ class MainWindow(wx.Frame):
             textfile.close()
             #control.SaveFile(os.path.join(self.dirname, filename))
 
-
+    
     def OnOpen(self, event):
         if self.askUserForFilename(style=wx.OPEN,
                                    **self.defaultFileDialogOptions()):
@@ -202,16 +221,17 @@ class MainWindow(wx.Frame):
             
             if self.GetCurrentCtrl().GetValue() == "" and self.notebook.GetPageText(current) == defaultname:
                 control = self.GetCurrentCtrl() # use the existing page
+                current = self.notebook.GetSelection() # get the updated current tab
+                self.notebook.SetPageText(current, self.filename) # give it the appropriate filename
+
             else:
                 self.notebook.AddPage(control, self.filename) # add a new page
 
             textfile = open(os.path.join(self.dirname, self.filename), 'r')
-            control.SetValue(textfile.read())
-            textfile.close()
+            control.SetValue(textfile.read()) # this will fire our OnTextChanged event
+            # we have to remove the asterisk that will be prepended to the filename
 
-            
-            current = self.notebook.GetSelection() # get the updated current tab
-            self.notebook.SetPageText(current, self.filename) # give it the appropriate filename
+            textfile.close()
 
             #control.LoadFile(os.path.join(self.dirname,self.filename))
 
@@ -244,17 +264,57 @@ class MainWindow(wx.Frame):
     def OnRedo(self, event):
         pass
 
+    def TabCloseHelper(self, event):
+        """Returns False if the user presses cancel, True otherwise"""
+        current = self.notebook.GetSelection() # get the updated current tab
+        filename = self.notebook.GetPageText(current)
+        modify = filename.startswith("*")
+        if modify:
+            dlg = wx.MessageDialog(self, 'Save before Close?', '', wx.YES_NO | wx.YES_DEFAULT |
+                        wx.CANCEL | wx.ICON_QUESTION)
+            val = dlg.ShowModal()
+            if val == wx.ID_YES:
+                self.OnSave(event)
+                if not self.modify:
+                    return True
+            elif val == wx.ID_CANCEL:
+                return False
+            else:
+                return True
+        return True
+
     def OnCloseTab(self, event):
+        #event.PreventDefault()
+        #event.StopPropagation()
+
         count = self.notebook.GetPageCount()
+        # prompt to save if tab has been modified
+        still_close = self.TabCloseHelper(event)
+        if not still_close:
+            event.Veto() # if the user presses Cancel, don't close the tab
+            return
+        # close whole window if this is our last tab
         if count == 1:
-            self.OnExit(event)
+            self.OnClose(event)
         elif count > 1:
             current = self.notebook.GetSelection()
             self.notebook.DeletePage(current) 
+        
+    def OnTextChanged(self, event):
+        current = self.notebook.GetSelection() # get the updated current tab
+        filename = self.notebook.GetPageText(current)
+        if filename.startswith("*"):
+            pass
+        else:
+            self.notebook.SetPageText(current, '*'+filename) # give it the appropriate filename
+        
+        # get the notebook tab and append an asterisk to its title
+        event.Skip()
 
-app = wx.App(redirect=False)
+# Initialize our application
 frame = MainWindow()
 app.SetTopWindow(frame)
+#app.SetExitOnFrameDelete(False)
 frame.Centre()
 frame.Show()
 app.MainLoop()
