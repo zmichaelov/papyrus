@@ -39,20 +39,26 @@ class Scribe:
     def CommitAction(self):
         start, end = self.textArea.GetSelection()
         if self.mode == Mode.COMPLETION:
+            self.textArea.BeginBatchUndo("Commit Suggestion")
             self.textArea.SetInsertionPoint(end)
             self.textArea.WriteText(" ")
             self.textArea.SetInsertionPoint(end + 1)
+            self.textArea.EndBatchUndo()
             self.mode = Mode.INSERT
         else:
             self.textArea.Replace(start, end, "\t")
     
     # updates proposed completions
     def RunCompletion(self, completion, pos):
+        self.textArea.BeginBatchUndo("Update Suggestion")
+
         self.textArea.SetInsertionPoint(pos)
         self.textArea.WriteText(completion)
         self.textArea.SetSelection(pos, pos + len(completion))
         self.textArea.MoveCaret(pos-1)
         self.mode = Mode.COMPLETION
+        
+        self.textArea.EndBatchUndo()
            
     # listen for single character insertions
     def OnChar(self, event):
@@ -61,7 +67,7 @@ class Scribe:
         if code == self.COMMIT_ACTION:
             self.CommitAction()
             return
-
+                
         # clear the previous selection
         self.textArea.DeleteSelection()
         pos = self.textArea.GetInsertionPoint()        
@@ -75,7 +81,7 @@ class Scribe:
             return
         else:        
             self.textArea.WriteText(chr(code))
-            
+        
         content = self.textArea.GetRange(0, pos+1)
         # Find where the word starts, by working backwards from our current position
         w = pos

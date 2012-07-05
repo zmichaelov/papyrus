@@ -21,8 +21,6 @@ class PapyrusApp(wx.App):
 defaultname = '[No Name]'
 app = PapyrusApp(redirect=False)
 
-
-
 class MainWindow(wx.Frame):
     def __init__(self):
         super(MainWindow, self).__init__(None, size=(800, -1))
@@ -41,9 +39,10 @@ class MainWindow(wx.Frame):
     def NewScribe(self):
         '''Creates a new RichTextCtrl with Scribe functionality'''
         control = wx.richtext.RichTextCtrl(self.notebook, style=wx.TE_MULTILINE)
+        control.SetBackgroundColour('#F6F6EF')
         newscribe = scribe.Scribe(control)
         control.Bind(wx.EVT_TEXT, self.OnTextChanged)
-        #control.Bind(wx.EVT_CHAR, newscribe.OnChar)
+        control.Bind(wx.EVT_CHAR, newscribe.OnChar)
         return control
 
     def CreateInteriorWindowComponents(self):
@@ -52,6 +51,7 @@ class MainWindow(wx.Frame):
         self.panel = wx.Panel(self)
 
         self.notebook = wx.aui.AuiNotebook(self.panel)
+        
         # create our RichTextCtrl as a child of the notebook
         # add our first page to the notebook
         self.notebook.AddPage(self.NewScribe(), defaultname)
@@ -100,7 +100,9 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.OnCut,  id=804)
         self.Bind(wx.EVT_TOOL, self.OnCopy, id=805)
         self.Bind(wx.EVT_TOOL, self.OnPaste,id=806)
-        #self.Bind(wx.EVT_TOOL, self.OnBold, id=807)
+        self.Bind(wx.EVT_TOOL, self.OnUndo, id=807)
+        self.Bind(wx.EVT_TOOL, self.OnRedo, id=808)
+
 
     def CreateMenu(self):
         fileMenu = wx.Menu()
@@ -263,9 +265,12 @@ class MainWindow(wx.Frame):
         control.BeginBold()
 
     def OnUndo(self, event):
-        pass
+        control = self.GetCurrentCtrl()
+        control.Undo()
+
     def OnRedo(self, event):
-        pass
+        control = self.GetCurrentCtrl()
+        control.Redo()
 
     def TabCloseHelper(self, event):
         """Returns False if the user presses cancel, True otherwise"""

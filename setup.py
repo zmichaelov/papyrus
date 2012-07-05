@@ -10,13 +10,9 @@ from setuptools import setup
 APP = ['Papyrus.py']
 DATA_FILES = ['/Users/zmichaelov/Projects/wxPapyrus/assets']
 OPTIONS = {'arch': 'i386', 'argv_emulation': True}
-EXCLUDES = ['_gtkagg', '_tkagg', 'bsddb', 'curses', 'email', 'pywin.debugger',
-            'pywin.debugger.dbgcon', 'pywin.dialogs', 'tcl',
-            'Tkconstants', 'Tkinter']
 setup(
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
-    excludes=EXCLUDES,
     setup_requires=['py2app'],
 )
