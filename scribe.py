@@ -85,12 +85,9 @@ class Scribe:
         content = self.textArea.GetRange(0, pos+1)
         # Find where the word starts, by working backwards from our current position
         w = pos
-        first_space = True
         for char in reversed(content):
-            if (char not in string.letters and char == " " and not first_space) or char == '.':
+            if char == " " or char == '.':
                 break
-            if char == " ":
-                first_space = False
             w -= 1   
         prefix = content[w+1:].lower()
 
@@ -102,12 +99,13 @@ class Scribe:
             self.updateSuggestions(prefix)
         else:
             new = " ".join(seed[-3:])
-            self.updateSuggestions(new)
-
+            self.updateSuggestions(new.strip())
         for suggestion in self.suggestions:
-            i = suggestion.find(prefix)
-            if i != -1:
+            i = suggestion.find(prefix.lstrip())
+            if i != 0:
+                print pos, ' ', w, ' ', i
                 completion = suggestion[pos - w + i:].rstrip() # only strip whitespace from the right side
+                print "completion:\t" + completion
                 self.RunCompletion(completion, pos + 1)
                 return
         
@@ -120,14 +118,15 @@ class Scribe:
             print "Error:", response.error
         else:
             result = json.loads(response.body)
-            #print "result:\t" + str(result[1])
+            print "result:\t" + str(result[1])
             self.suggestions = result[1]
         IOLoop.instance().stop()
 
 
     def updateSuggestions(self, request_term):
-        #print "request_term:\t" + request_term
-        events = {'client' : 'firefox', 'q' : request_term.lower() }
+        print "request_term:\t" + request_term
+
+        events = {'client' : 'firefox', 'q' : request_term.lower().strip() }
         request = urllib.urlencode(events)
         self.http_client.fetch(self.request_url + request, self.handle_request)
         IOLoop.instance().start()

@@ -34,6 +34,8 @@ class MainWindow(wx.Frame):
         # initialize GUI components
         self.CreateInteriorWindowComponents()
         self.CreateExteriorWindowComponents()
+
+        self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
         #self.control.SetCursor(wx.StockCursor(wx.CURSOR_POINT_LEFT))
     
     def NewScribe(self):
@@ -54,7 +56,7 @@ class MainWindow(wx.Frame):
         
         # create our RichTextCtrl as a child of the notebook
         # add our first page to the notebook
-        self.notebook.AddPage(self.NewScribe(), defaultname)
+        self.notebook.AddPage(self.NewScribe(), defaultname, select=True)
         # listen for close and double-click events
         self.notebook.Bind(wx.aui.EVT_AUINOTEBOOK_BG_DCLICK, self.OnNewTab)
         self.notebook.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnCloseTab)
@@ -130,7 +132,8 @@ class MainWindow(wx.Frame):
             [(wx.ID_UNDO, '&Undo\tCtrl+Z', 'Undo the previous action', self.OnUndo),
              (wx.ID_REDO, '&Redo\tShift+Ctrl+Z', 'Redo the previous action', self.OnRedo),
              (None, None, None, None),
-             (102, '&Close Tab\tCtrl+W', 'Close the current tab', self.OnCloseTab)]:
+             (102, '&Close Tab\tCtrl+W', 'Close the current tab', self.OnCloseTab),
+             (103, '&Close Window\tShift+Ctrl+W','Close the current window', self.OnCloseWindow)]:
             if id == None:
                 editMenu.AppendSeparator()
             else:
@@ -181,15 +184,19 @@ class MainWindow(wx.Frame):
     
     def OnNewTab(self, event):
         # add our new page to the notebook
-        self.notebook.AddPage(self.NewScribe(), defaultname)
+        self.notebook.AddPage(self.NewScribe(), defaultname, select=True)
 
     def OnAbout(self, event):
-        dialog = wx.MessageDialog(self, 'A text editor inspired by Google Scribe', 'About Papyrus Editor', wx.OK)
+        dialog = wx.MessageDialog(self, 'A text editor inspired by Google Scribe', 'About Papyrus Editor', wx.OK | wx.ICON_QUESTION)
         dialog.ShowModal()
         dialog.Destroy()
 
-    def OnClose(self, event):
-        self.Close()  # Close the main window.
+    def OnCloseWindow(self, event):
+        # iterate through those tabs that are still open
+        size = self.notebook.GetPageCount()
+        for i in xrange(0, size):
+            self.OnCloseTab(event)
+            #self.notebook.AdvanceSelection()
     
     def OnQuit(self, event):
         # destroy the app main loop
@@ -230,12 +237,18 @@ class MainWindow(wx.Frame):
                 self.notebook.SetPageText(current, self.filename) # give it the appropriate filename
 
             else:
-                self.notebook.AddPage(control, self.filename) # add a new page
+                self.notebook.AddPage(control, self.filename, select=True) # add a new page
 
             textfile = open(os.path.join(self.dirname, self.filename), 'r')
             control.SetValue(textfile.read()) # this will fire our OnTextChanged event
+            
             # we have to remove the asterisk that will be prepended to the filename
-
+            current = self.notebook.GetSelection()
+            filename = self.notebook.GetPageText(current)
+            if filename.startswith("*"):
+                filename = filename[1:] 
+                self.notebook.SetPageText(current, filename)
+            
             textfile.close()
 
             #control.LoadFile(os.path.join(self.dirname,self.filename))
@@ -283,8 +296,6 @@ class MainWindow(wx.Frame):
             val = dlg.ShowModal()
             if val == wx.ID_YES:
                 self.OnSave(event)
-                if not self.modify:
-                    return True
             elif val == wx.ID_CANCEL:
                 return False
             else:
@@ -292,15 +303,15 @@ class MainWindow(wx.Frame):
         return True
 
     def OnCloseTab(self, event):
-        count = self.notebook.GetPageCount()
         # prompt to save if tab has been modified
         still_close = self.TabCloseHelper(event)
         if not still_close:
             event.Veto() # if the user presses Cancel, don't close the tab
             return
         # close whole window if this is our last tab
+        count = self.notebook.GetPageCount()
         if count == 1:
-            self.OnClose(event)
+            self.Destroy()
         elif count > 1:
             current = self.notebook.GetSelection()
             self.notebook.DeletePage(current) 
