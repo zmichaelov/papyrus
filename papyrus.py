@@ -10,13 +10,16 @@ import scribe
 
 class PapyrusApp(wx.App):
     def MacReopenApp(self):
-        """Called when the doc icon is clicked, and ???"""
-        frame = MainWindow()
-        self.SetTopWindow
-        self.BringWindowToFront()
+        if self.GetTopWindow() is None:
+            """Called when the doc icon is clicked, and ???"""
+            frame = MainWindow()
+            self.SetTopWindow(frame)
+            frame.Center()
+            frame.Show()
+
 
 defaultname = '[No Name]'
-app = wx.App(redirect=False)
+app = PapyrusApp(redirect=False)
 
 
 
@@ -188,7 +191,7 @@ class MainWindow(wx.Frame):
     
     def OnQuit(self, event):
         # destroy the app main loop
-        self.Exit()
+        app.Exit()
 
     def OnSave(self, event):
         current = self.notebook.GetSelection()
@@ -284,9 +287,6 @@ class MainWindow(wx.Frame):
         return True
 
     def OnCloseTab(self, event):
-        #event.PreventDefault()
-        #event.StopPropagation()
-
         count = self.notebook.GetPageCount()
         # prompt to save if tab has been modified
         still_close = self.TabCloseHelper(event)
@@ -314,7 +314,7 @@ class MainWindow(wx.Frame):
 # Initialize our application
 frame = MainWindow()
 app.SetTopWindow(frame)
-#app.SetExitOnFrameDelete(False)
+app.SetExitOnFrameDelete(False)
 frame.Centre()
 frame.Show()
 app.MainLoop()
