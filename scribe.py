@@ -55,7 +55,7 @@ class Scribe:
         self.textArea.SetInsertionPoint(pos)
         self.textArea.WriteText(completion)
         self.textArea.SetSelection(pos, pos + len(completion))
-        self.textArea.MoveCaret(pos-1)
+        self.textArea.MoveCaret(pos-1,True)
         self.mode = Mode.COMPLETION
         
         self.textArea.EndBatchUndo()
@@ -85,30 +85,42 @@ class Scribe:
         content = self.textArea.GetRange(0, pos+1)
         # Find where the word starts, by working backwards from our current position
         w = pos
+        first_space = True
         for char in reversed(content):
-            if char == " " or char == '.':
+            if (not first_space and char == " ") or char == '.':
                 break
+            if char == ' ':
+                first_space = False
+            if char == '\r' or char == '\n':
+                pass#continue
             w -= 1   
-        prefix = content[w+1:].lower()
+        prefix = content[w+1:].lower().lstrip()
 
         # look only for letters (no punctuation, numbers, etc.)
         
         seed = re.findall(r'[a-zA-Z\']+', content)
         
-        if len(seed) < 3 or char == '.':
+        order = 3 # how many terms back we look
+        new = ''
+        if len(seed) < order or char == '.':
             self.updateSuggestions(prefix)
         else:
-            new = " ".join(seed[-3:])
-            self.updateSuggestions(new.strip())
+            new = " ".join(seed[-order:]).lstrip()
+            self.updateSuggestions(new)
+
+        #if new != '':
+            #prefix = new
+        
+        print 'prefix = :' + prefix
+        print 'new = :' + new
         for suggestion in self.suggestions:
-            i = suggestion.find(prefix.lstrip())
-            if i != 0:
-                print pos, ' ', w, ' ', i
+
+            i = suggestion.find(prefix)
+            if i != -1:
                 completion = suggestion[pos - w + i:].rstrip() # only strip whitespace from the right side
                 print "completion:\t" + completion
                 self.RunCompletion(completion, pos + 1)
                 return
-        
         # if nothing found
         self.mode = Mode.INSERT
 
