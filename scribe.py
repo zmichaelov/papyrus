@@ -55,7 +55,7 @@ class Scribe:
         self.textArea.SetInsertionPoint(pos)
         self.textArea.WriteText(completion)
         self.textArea.SetSelection(pos, pos + len(completion))
-        self.textArea.MoveCaret(pos-1,True)
+        self.textArea.MoveCaret(pos-1)
         self.mode = Mode.COMPLETION
         
         self.textArea.EndBatchUndo()
@@ -74,7 +74,8 @@ class Scribe:
         
         # adding default behavior back to the editor, namely delete functionality
         if code == wx.WXK_BACK:
-            self.textArea.Remove(pos-1, pos)
+            if pos - 1 >= 0:
+                self.textArea.Remove(pos-1, pos)
             return
         elif code == wx.WXK_DELETE:
             self.textArea.Remove(pos, pos+1)
