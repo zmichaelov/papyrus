@@ -87,13 +87,15 @@ class Scribe:
         # Find where the word starts, by working backwards from our current position
         w = pos
         first_space = True
+        cr_count = 0 # keeps track of whether there has been a carriage return
         for char in reversed(content):
             if (not first_space and char == " ") or char == '.':
                 break
             if char == ' ':
                 first_space = False
             if char == '\r' or char == '\n':
-                pass#continue
+                first_space = False
+                cr_count += 1
             w -= 1   
         prefix = content[w+1:].lower().lstrip()
 
@@ -103,22 +105,19 @@ class Scribe:
         
         order = 3 # how many terms back we look
         new = ''
-        if len(seed) < order or char == '.':
+        print 'prefix = :' + prefix
+        if len(seed) < order or char == '.' or cr_count > 0:
             self.updateSuggestions(prefix)
         else:
             new = " ".join(seed[-order:]).lstrip()
             self.updateSuggestions(new)
 
-        #if new != '':
-            #prefix = new
-        
-        print 'prefix = :' + prefix
-        print 'new = :' + new
+        #print 'new = :' + new
         for suggestion in self.suggestions:
 
             i = suggestion.find(prefix)
             if i != -1:
-                completion = suggestion[pos - w + i:].rstrip() # only strip whitespace from the right side
+                completion = suggestion[pos - w + i - cr_count:].rstrip() # only strip whitespace from the right side
                 print "completion:\t" + completion
                 self.RunCompletion(completion, pos + 1)
                 return
