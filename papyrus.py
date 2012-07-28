@@ -1,4 +1,4 @@
-#!/usr/bin/env arch -i386 python
+#!/usr/bin/env python
 
 
 # This class is the main starting point for our application
