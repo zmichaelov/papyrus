@@ -4,7 +4,7 @@
 import wx, string
 from tornado.httpclient import AsyncHTTPClient
 from tornado.ioloop import IOLoop
-import json, urllib, re
+import json, urllib, re, logging
 
 # helper class to store editor states
 class Mode:
@@ -25,12 +25,14 @@ class Scribe:
         self.suggestions = []
         self.textArea = text
         self.mode = Mode.INSERT 
-        
+
         self.COMMIT_ACTION = wx.WXK_TAB
 
         self.http_client = AsyncHTTPClient()
         self.request_url = urls["Google"]#"http://suggestqueries.google.com/complete/search?"
-
+        
+        # initialize our logging file
+        logging.basicConfig(filename='papyrus.log',level=logging.DEBUG)
            
     def IsArrowKey(self, code):
         return code == wx.WXK_LEFT or code == wx.WXK_RIGHT or code == wx.WXK_UP or code == wx.WXK_DOWN
@@ -89,14 +91,18 @@ class Scribe:
         first_space = True
         cr_count = 0 # keeps track of whether there has been a carriage return
         for char in reversed(content):
+            logging.debug("char:" + char)
             if (not first_space and char == " ") or char == '.':
+                if cr_count == 0:
+                    w += 1
                 break
             if char == ' ':
                 first_space = False
             if char == '\r' or char == '\n':
                 first_space = False
                 cr_count += 1
-            w -= 1   
+            w -= 1 
+        logging.debug("pos - w:" + str(pos - w))      
         prefix = content[w+1:].lower().lstrip()
 
         # look only for letters (no punctuation, numbers, etc.)
@@ -105,20 +111,19 @@ class Scribe:
         
         order = 3 # how many terms back we look
         new = ''
-        print 'prefix = :' + prefix
+        logging.debug('prefix:' + prefix)
         if len(seed) < order or char == '.' or cr_count > 0:
             self.updateSuggestions(prefix)
         else:
             new = " ".join(seed[-order:]).lstrip()
             self.updateSuggestions(new)
 
-        #print 'new = :' + new
         for suggestion in self.suggestions:
 
             i = suggestion.find(prefix)
             if i != -1:
                 completion = suggestion[pos - w + i - cr_count:].rstrip() # only strip whitespace from the right side
-                print "completion:\t" + completion
+                logging.debug("completion:" + completion)
                 self.RunCompletion(completion, pos + 1)
                 return
         # if nothing found
@@ -127,16 +132,16 @@ class Scribe:
 
     def handle_request(self, response):
         if response.error:
-            print "Error:", response.error
+            logging.error("Error:", response.error)
         else:
             result = json.loads(response.body)
-            print "result:\t" + str(result[1])
+            logging.debug("result:" + str(result[1]))
             self.suggestions = result[1]
         IOLoop.instance().stop()
 
 
     def updateSuggestions(self, request_term):
-        print "request_term:\t" + request_term
+        logging.debug("request_term:" + request_term)
 
         events = {'client' : 'firefox', 'q' : request_term.lower().strip() }
         request = urllib.urlencode(events)
