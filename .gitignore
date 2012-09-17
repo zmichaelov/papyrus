@@ -8,3 +8,4 @@ smalledit.py
 async.py
 # ignore text files
 *.txt
+papyrus.log

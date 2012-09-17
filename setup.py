@@ -8,7 +8,7 @@ Usage:
 from setuptools import setup
 
 APP = ['Papyrus.py']
-DATA_FILES = ['/Users/zmichaelov/Projects/wxPapyrus/assets']
+DATA_FILES = ['/Users/zmichaelov/Projects/papyrus/assets']
 OPTIONS = {'arch': 'i386', 'argv_emulation': True}
 setup(
     app=APP,
